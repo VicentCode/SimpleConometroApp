@@ -1,33 +1,24 @@
 package com.vicentcode.conometro
 
-import android.content.Context
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.SystemClock
-import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.ArrayAdapter
-import android.widget.Chronometer
 import android.widget.Toast
-import android.window.OnBackInvokedDispatcher
 import androidx.core.view.isVisible
 import com.google.android.material.snackbar.Snackbar
 import com.vicentcode.conometro.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-private lateinit var v: ActivityMainBinding
+class MainActivity : AppCompatActivity(), CoroutineScope {
 
-var crono: Job? = null
-private lateinit var chronometer: Chronometer
-class MainActivity : AppCompatActivity() , CoroutineScope {
-
+    private lateinit var v: ActivityMainBinding
     private var running = false
     private var time = 0L
-    val timesHistory = ArrayList<String>()
+    private val timesHistory = ArrayList<String>()
+
+    private var crono: Job? = null
 
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.Main
@@ -38,78 +29,68 @@ class MainActivity : AppCompatActivity() , CoroutineScope {
         val view = v.root
         setContentView(view)
 
+        setupViews()
 
-        v.tvCrono.text = getString(R.string.zeroCrono)
         val tiempos = intent.getStringExtra("tiempos")
         if (tiempos != null) {
-            running = !running
-            if (running) {
-                stop()
-            } else {
-                stop()
-            }
+            toggleChronometerState()
             v.tvCrono.text = tiempos
+
+            //delete this section for chronometer start automatically to start activity
+            running = !running
+            stopChronometer()
+            //
+
             time = parseTimeToMillis(tiempos)
         }
 
-
-        if (timesHistory!!.isEmpty()){
+        if (timesHistory.isEmpty()) {
             v.tvList.text = getString(R.string.emptyList)
             v.fabSend.isVisible = false
         }
+    }
+
+    private fun setupViews() {
+        v.tvCrono.text = getString(R.string.zeroCrono)
 
         v.fabReset.setOnClickListener {
-            time = 0L
-            v.tvCrono.text = getString(R.string.zeroCrono)
+            resetChronometer()
         }
 
         v.fabSave.setOnClickListener {
-            v.tvList.text=""
-            v.fabSend.isVisible = true
-            timesHistory.add(v.tvCrono.text.toString())
-            val adapter = ArrayAdapter(this, R.layout.list_pref , timesHistory!!.toMutableList())
-            v.listVPre.adapter = adapter
+            saveTimeRecord()
         }
+
         v.fabSave.setOnLongClickListener {
-            timesHistory.clear()
-            v.fabSend.isVisible = false
-            v.tvList.text = getString(R.string.emptyList)
-            val adapter = ArrayAdapter(this, R.layout.list_pref , timesHistory!!.toMutableList())
-            v.listVPre.adapter = adapter
-            val snackbar = Snackbar.make(view, "Lista vaciada", Snackbar.LENGTH_SHORT).show()
-            true
+            clearTimeHistory()
         }
 
         v.fabSend.setOnClickListener {
-            val intent = Intent(this@MainActivity, listClock::class.java)
-            val vector = timesHistory.map { it.toString() }.toTypedArray()
-            intent.putExtra("times", vector)
-            stop()
-            startActivity(intent)
-            finish()
+            sendTimeHistory()
         }
 
         v.fabPlay.setOnClickListener {
-            running = !running
-            if (running) {
-                start()
-            } else {
-                stop()
-
-            }
+            toggleChronometerState()
         }
-
     }
 
     override fun onBackPressed() {
-        //super.onBackPressed()
-        stop()
+        stopChronometer()
         finish()
     }
 
-    private fun start() {
+    private fun toggleChronometerState() {
+        running = !running
+        if (running) {
+            startChronometer()
+        } else {
+            stopChronometer()
+        }
+    }
+
+    private fun startChronometer() {
         v.fabPlay.setImageResource(R.drawable.pause)
-        val coroutine = launch(Dispatchers.Main) {
+        crono = launch(Dispatchers.Main) {
             while (running) {
                 time += 100
                 v.tvCrono.text = formatTime(time)
@@ -118,14 +99,43 @@ class MainActivity : AppCompatActivity() , CoroutineScope {
         }
     }
 
-
-    private fun stop() {
+    private fun stopChronometer() {
         v.fabPlay.setImageResource(R.drawable.play)
         running = false
 
-        if (crono != null && crono!!.isActive) {
-            crono!!.cancel()
-        }
+        crono?.cancel()
+    }
+
+    private fun resetChronometer() {
+        time = 0L
+        v.tvCrono.text = getString(R.string.zeroCrono)
+    }
+
+    private fun saveTimeRecord() {
+        v.tvList.text = ""
+        v.fabSend.isVisible = true
+        timesHistory.add(v.tvCrono.text.toString())
+        val adapter = ArrayAdapter(this, R.layout.list_pref, timesHistory.toMutableList())
+        v.listVPre.adapter = adapter
+    }
+
+    private fun clearTimeHistory(): Boolean {
+        timesHistory.clear()
+        v.fabSend.isVisible = false
+        v.tvList.text = getString(R.string.emptyList)
+        val adapter = ArrayAdapter(this, R.layout.list_pref, timesHistory.toMutableList())
+        v.listVPre.adapter = adapter
+        Snackbar.make(v.root, getString(R.string.ListClear), Snackbar.LENGTH_SHORT).show()
+        return true
+    }
+
+    private fun sendTimeHistory() {
+        val intent = Intent(this@MainActivity, ListClock::class.java)
+        val vector = timesHistory.map { it }.toTypedArray()
+        intent.putExtra("times", vector)
+        stopChronometer()
+        startActivity(intent)
+        finish()
     }
 
     private fun parseTimeToMillis(timeString: String): Long {
@@ -143,7 +153,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope {
         return 0
     }
 
-
     private fun formatTime(time: Long): String {
         val minutes = time / (1000 * 60)
         val seconds = (time / 1000) % 60
@@ -151,9 +160,4 @@ class MainActivity : AppCompatActivity() , CoroutineScope {
 
         return String.format("%02d:%02d:%02d", minutes, seconds, milliseconds / 10)
     }
-
-
-
-
-
 }
