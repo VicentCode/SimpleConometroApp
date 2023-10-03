@@ -1,0 +1,24 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Conometro" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
+    <style name="Theme.Conometro" parent="Base.Theme.Conometro" />
+
+
+    <style name="crono">
+        <item name="android:textSize">56sp</item>
+        <item name="android:textAlignment">center</item>
+        <item name="fontFamily">@font/inter_extrabold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="emptyList">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAlignment">center</item>
+        <item name="fontFamily">@font/inter_semibold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>
